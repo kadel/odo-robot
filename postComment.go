@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"time"
@@ -38,11 +40,24 @@ func getJwtToken(keyFilePath string) string {
 
 func main() {
 
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: getToken <pathToPrivateKey>")
-		os.Exit(1)
+	var keyPath string
+	flag.StringVar(&keyPath, "key", "", "path to the private key file")
+	var prNumber int
+	flag.IntVar(&prNumber, "pr-comment", 0, "PR number to post comment to")
+
+	flag.Parse()
+
+	// if --pr-number was set read text rom stdin
+	var text string
+	fmt.Println(prNumber)
+	if prNumber != 0 {
+		fmt.Println("read text from stdin")
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			line := scanner.Text()
+			text += line + "\n"
+		}
 	}
-	keyPath := os.Args[1]
 
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
@@ -74,6 +89,28 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	b, _ := json.MarshalIndent(token, "", "  ")
-	fmt.Println(string(b))
+	// b, _ := json.MarshalIndent(token, "", "  ")
+	// fmt.Println(string(b))
+
+	// create a client for the application installation
+	odoClient := github.NewClient(
+		oauth2.NewClient(ctx,
+			oauth2.StaticTokenSource(
+				&oauth2.Token{AccessToken: *token.Token},
+			),
+		),
+	)
+
+	if prNumber != 0 {
+		comment, _, err := odoClient.Issues.CreateComment(ctx, "redhat-developer", "odo", prNumber,
+			&github.IssueComment{
+				Body: &text,
+			})
+		if err != nil {
+			panic(err)
+		}
+		b, _ := json.MarshalIndent(comment, "", "  ")
+		fmt.Println(string(b))
+	}
+
 }
