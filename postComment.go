@@ -110,7 +110,8 @@ func main() {
 		var existingComment int64 = 0
 
 		for _, comment := range comments {
-			if *comment.User.Login == "odo-robot" {
+			if *comment.User.Login == "odo-robot[bot]" {
+				fmt.Printf("detected existing comment id:%d\n", *comment.ID)
 				existingComment = *comment.ID
 				break
 			}
