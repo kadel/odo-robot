@@ -102,15 +102,37 @@ func main() {
 	)
 
 	if prNumber != 0 {
-		comment, _, err := odoClient.Issues.CreateComment(ctx, "redhat-developer", "odo", prNumber,
-			&github.IssueComment{
-				Body: &text,
-			})
+		comments, _, err := odoClient.Issues.ListComments(ctx, "redhat-developer", "odo", prNumber, &github.IssueListCommentsOptions{})
+		if err != nil {
+			panic(err)
+		}
+
+		var existingComment int64 = 0
+
+		for _, comment := range comments {
+			if *comment.User.Login == "odo-robot" {
+				existingComment = *comment.ID
+				break
+			}
+		}
+
+		var comment *github.IssueComment
+		if existingComment != 0 {
+			comment, _, err = odoClient.Issues.EditComment(ctx, "redhat-developer", "odo", existingComment,
+				&github.IssueComment{
+					Body: &text,
+				})
+		} else {
+			comment, _, err = odoClient.Issues.CreateComment(ctx, "redhat-developer", "odo", prNumber,
+				&github.IssueComment{
+					Body: &text,
+				})
+		}
+
 		if err != nil {
 			panic(err)
 		}
 		b, _ := json.MarshalIndent(comment, "", "  ")
 		fmt.Println(string(b))
 	}
-
 }
