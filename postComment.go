@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -44,6 +45,8 @@ func main() {
 	flag.StringVar(&keyPath, "key", "", "path to the private key file")
 	var prNumber int
 	flag.IntVar(&prNumber, "pr-comment", 0, "PR number to post comment to")
+	var pipelineName string
+	flag.StringVar(&pipelineName, "pipeline", "", "Name of the pipeline")
 
 	flag.Parse()
 
@@ -110,10 +113,13 @@ func main() {
 		var existingComment int64 = 0
 
 		for _, comment := range comments {
+
 			if *comment.User.Login == "odo-robot[bot]" {
-				fmt.Printf("detected existing comment id:%d\n", *comment.ID)
-				existingComment = *comment.ID
-				break
+				if strings.HasPrefix(comment.GetBody(), pipelineName) {
+					existingComment = *comment.ID
+					fmt.Printf("detected existing comment id:%d\n", existingComment)
+					break
+				}
 			}
 		}
 
