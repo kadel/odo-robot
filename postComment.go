@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -15,13 +16,9 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func getJwtToken(keyFilePath string) string {
-	keyFile, err := os.ReadFile(keyFilePath)
-	if err != nil {
-		panic(err)
-	}
+func getJwtToken(keyFileContent []byte) string {
 
-	key, err := jwt.ParseRSAPrivateKeyFromPEM(keyFile)
+	key, err := jwt.ParseRSAPrivateKeyFromPEM(keyFileContent)
 	if err != nil {
 		panic(err)
 	}
@@ -42,7 +39,9 @@ func getJwtToken(keyFilePath string) string {
 func main() {
 
 	var keyPath string
-	flag.StringVar(&keyPath, "key", "", "path to the private key file")
+	flag.StringVar(&keyPath, "key-from-file", "", "path to the private key file")
+	var keyEnvVar string
+	flag.StringVar(&keyEnvVar, "key-from-env-var", "", "name of the environment variable containing base64-encoded private key")
 	var prNumber int
 	flag.IntVar(&prNumber, "pr-comment", 0, "PR number to post comment to")
 	var pipelineName string
@@ -63,8 +62,24 @@ func main() {
 	}
 
 	ctx := context.Background()
+	var keyFileContent []byte
+	if keyPath != "" {
+		var err error
+		keyFileContent, err = os.ReadFile(keyPath)
+		if err != nil {
+			panic(err)
+		}
+	} else if keyEnvVar != "" {
+		var err error
+		keyFileContent, err = base64.StdEncoding.DecodeString(os.Getenv(keyEnvVar))
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		panic("no private key provided, please use -key-from-file or -key-from-env-var flags")
+	}
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: getJwtToken(keyPath)},
+		&oauth2.Token{AccessToken: getJwtToken(keyFileContent)},
 	)
 	tc := oauth2.NewClient(ctx, ts)
 
